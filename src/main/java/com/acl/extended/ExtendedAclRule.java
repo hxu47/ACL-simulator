@@ -1,44 +1,72 @@
 package com.acl.extended;
 
+import java.util.Set;
+import java.util.HashSet;
+
 public class ExtendedAclRule {
+    private static final Set<String> PORTLESS_PROTOCOLS = new HashSet<String>() {{
+        add("ip");
+        add("icmp");
+        add("igmp");
+    }};
+
     private int aclNumber;
     private boolean isPermit;
     private String protocol;
-    private String sourceIP;
-    private String sourceWildcard;
-    private String destIP;
-    private String destWildcard;
+    String sourceIP;
+    String sourceWildcard;
+    String destIP;
+    String destWildcard;
     private Integer portRangeStart;
     private Integer portRangeEnd;
     private boolean isPortRange;
 
     public ExtendedAclRule(String aclLine) {
-        // Parse ACL line like:
-        // "access-list 101 deny tcp 172.16.0.0 0.0.255.255 172.16.3.0 0.0.0.255 range 20-21"
-        // or "access-list 101 deny tcp 172.16.0.0 0.0.255.255 172.16.3.0 0.0.0.255 eq 80"
         String[] parts = aclLine.split("\\s+");
         this.aclNumber = Integer.parseInt(parts[1]);
         this.isPermit = parts[2].equalsIgnoreCase("permit");
-        this.protocol = parts[3];
-        this.sourceIP = parts[4];
-        this.sourceWildcard = parts[5];
-        this.destIP = parts[6];
-        this.destWildcard = parts[7];
+        this.protocol = parts[3].toLowerCase();
 
-        // Handle port specifications if present
-        if (parts.length > 8) {
-            if (parts[8].equals("range")) {
-                // Handle port range (e.g., "range 20-21")
-                this.isPortRange = true;
-                String[] portRange = parts[9].split("-");
-                this.portRangeStart = Integer.parseInt(portRange[0]);
-                this.portRangeEnd = Integer.parseInt(portRange[1]);
-            } else if (parts[8].equals("eq")) {
-                // Handle single port (e.g., "eq 80")
-                this.isPortRange = false;
-                this.portRangeStart = Integer.parseInt(parts[9]);
-                this.portRangeEnd = this.portRangeStart;
-            }
+        int currentIndex = 4;  // Start after protocol
+
+        // Parse source IP and wildcard
+        if (parts[currentIndex].equalsIgnoreCase("any")) {
+            this.sourceIP = "0.0.0.0";
+            this.sourceWildcard = "255.255.255.255";
+            currentIndex++;
+        } else {
+            this.sourceIP = parts[currentIndex++];
+            this.sourceWildcard = parts[currentIndex++];
+        }
+
+        // Parse destination IP and wildcard
+        if (parts[currentIndex].equalsIgnoreCase("any")) {
+            this.destIP = "0.0.0.0";
+            this.destWildcard = "255.255.255.255";
+            currentIndex++;
+        } else {
+            this.destIP = parts[currentIndex++];
+            this.destWildcard = parts[currentIndex++];
+        }
+
+        // Parse port specifications if present and protocol uses ports
+        if (!PORTLESS_PROTOCOLS.contains(protocol) && currentIndex < parts.length) {
+            parsePortSpecification(parts[currentIndex], parts[currentIndex + 1]);
+        }
+    }
+
+    private void parsePortSpecification(String portType, String portValue) {
+        if (portType.equals("range")) {
+            // Handle port range (e.g., "range 20-21")
+            String[] portRange = portValue.split("-");
+            this.isPortRange = true;
+            this.portRangeStart = Integer.parseInt(portRange[0]);
+            this.portRangeEnd = Integer.parseInt(portRange[1]);
+        } else if (portType.equals("eq")) {
+            // Handle single port (e.g., "eq 80")
+            this.isPortRange = false;
+            this.portRangeStart = Integer.parseInt(portValue);
+            this.portRangeEnd = this.portRangeStart;
         }
     }
 
@@ -59,21 +87,37 @@ public class ExtendedAclRule {
         return true;
     }
 
-    public boolean matches(String sourceIP, String destIP, int port) {
+    private boolean portMatches(Integer port) {
+        // If packet doesn't specify port, only match if rule doesn't specify port
+        if (port == null) {
+            return portRangeStart == null;
+        }
+
+        // If no port specification in rule, match any port
+        if (portRangeStart == null) {
+            return true;
+        }
+
+        if (isPortRange) {
+            return port >= portRangeStart && port <= portRangeEnd;
+        } else {
+            return port.equals(portRangeStart);
+        }
+    }
+
+
+    public boolean matches(String sourceIP, String destIP, Integer port) {
         // Check if IPs match
         boolean sourceMatches = ipMatches(sourceIP, this.sourceIP, this.sourceWildcard);
         boolean destMatches = ipMatches(destIP, this.destIP, this.destWildcard);
+        boolean portMatches = portMatches(port);
 
-        // If port is specified, check if port matches
-        boolean portMatches = true;
-        if (portRangeStart != null) {
-            if (isPortRange) {
-                portMatches = port >= portRangeStart && port <= portRangeEnd;
-            } else {
-                portMatches = port == portRangeStart;
-            }
+        // For protocols without ports, ignore port matching
+        if (PORTLESS_PROTOCOLS.contains(protocol)) {
+            return sourceMatches && destMatches;
         }
 
+        // For protocols with ports, check all conditions
         return sourceMatches && destMatches && portMatches;
     }
 
@@ -83,5 +127,9 @@ public class ExtendedAclRule {
 
     public int getAclNumber() {
         return aclNumber;
+    }
+
+    public String getProtocol() {
+        return protocol;
     }
 }

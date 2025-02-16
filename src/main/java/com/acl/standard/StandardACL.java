@@ -7,7 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class StandardACL {
-    private List<AclRule> rules;
+    public List<AclRule> rules;
     private boolean isInbound;
     private int aclNumber;
 
