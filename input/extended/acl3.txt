@@ -1,0 +1,5 @@
+access-list 101 deny tcp any 192.168.1.100 0.0.0.0 eq 80
+access-list 101 permit tcp 172.16.0.0 0.0.255.255 any eq 80
+access-list 101 permit tcp any any eq 443
+interface E0
+ip access-group 101 out

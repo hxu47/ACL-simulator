@@ -1,0 +1,5 @@
+access-list 102 deny tcp 192.168.1.0 0.0.0.255 any range 20-21
+access-list 102 permit ip 192.168.1.0 0.0.0.255 172.16.0.0 0.0.255.255
+access-list 102 permit tcp any any eq 22
+interface E0
+ip access-group 102 out
