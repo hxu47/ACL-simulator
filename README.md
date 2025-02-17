@@ -141,6 +141,15 @@ Sample input files are provided in the `input` directory:
 - Standard ACL examples: `input/standard/`
 - Extended ACL examples: `input/extended/`
 
+Commands to run test files:
+```
+./standard-acl.sh input/standard/acl1.txt input/standard/packets1.txt
+./standard-acl.sh input/standard/acl2.txt input/standard/packets2.txt
+./standard-acl.sh input/standard/acl3.txt input/standard/packets3.txt
+./extended-acl.sh input/extended/acl1.txt input/extended/packets1.txt
+./extended-acl.sh input/extended/acl2.txt input/extended/packets2.txt
+./extended-acl.sh input/extended/acl3.txt input/extended/packets3.txt
+```
 ## Testing
 
 Run the test suite using Maven:
